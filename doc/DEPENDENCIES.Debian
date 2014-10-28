@@ -3,5 +3,5 @@ DEPENDENCIES - Debian
 
 This command should install all the necessary packages on Debian-like systems:
 
-  # apt-get install build-essential git unzip mysql-server mysql-client python-dev beanstalkd python-yaml python-setuptools python-simplejson python-mysqldb
+  # apt-get install build-essential git unzip mysql-server mysql-client python-dev beanstalkd python-yaml python-setuptools python-simplejson python-mysqldb gdb
 
