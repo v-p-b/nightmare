@@ -48,6 +48,10 @@ class CSamplesGenerator:
     for row in res:
       self.config[row.name] = row.value
       log("Configuration value %s is %s" % (row.name, row.value))
+    
+    # Create the corresponding directory if it doesn't exists
+    if not os.path.exists(self.config["SAMPLES_PATH"]):
+      os.makedirs(self.config["SAMPLES_PATH"])
 
   def get_project_engines(self):
     res = self.db.query(""" select p.name project_name,
@@ -64,6 +68,10 @@ class CSamplesGenerator:
                              where p.project_id = pe.project_id
                                and me.mutation_engine_id = pe.mutation_engine_id
                                and p.enabled = 1
+                               and ifnull((select iteration
+                                      from statistics s
+                                     where project_id = p.project_id
+                                       and mutation_engine_id = -1), 0) < p.maximum_iteration
                              order by rand()""")
     return res
 
@@ -106,6 +114,7 @@ class CSamplesGenerator:
       json_buf = json.dumps([base64.b64encode(buf), temp_file])
       q.put(json_buf)
       self.update_statistics(project_id, mutation_engine_id)
+      self.update_iteration(project_id)
     except:
       log("Error putting job in queue: %s" % str(sys.exc_info()[1]))
       log("Removing temporary file %s" % temp_file)
@@ -119,9 +128,29 @@ class CSamplesGenerator:
     finally:
       self.queue_lock.release()
 
+  def update_iteration(self, project_id):
+    what = "statistic_id, iteration iter_value"
+    vars = {"project_id":project_id}
+    where = "project_id = $project_id and mutation_engine_id = -1"
+    res = self.db.select("statistics", what=what, where=where, vars=vars)
+    res = list(res)
+    with self.db.transaction():
+      if len(res) == 0:
+        print "insert"
+        self.db.insert("statistics", project_id=project_id,
+                       mutation_engine_id=-1, total=0, iteration=0)
+      else:
+        row = res[0]
+        vars = {"id":row.statistic_id}
+        where = "statistic_id = $id"
+        iter_value = row.iter_value
+        if row.iter_value is None:
+          iter_value = 0
+        total = self.db.update("statistics", iteration=iter_value+1, where=where, vars=vars)
+
   def update_statistics(self, project_id, mutation_engine_id):
-    sql = "select statistic_id, total from statistics where project_id = %s and mutation_engine_id = %s"
-    what = "statistic_id, total"
+    sql = "select statistic_id, total, iteration from statistics where project_id = %s and mutation_engine_id = %s"
+    what = "statistic_id, total, iteration"
     vars = {"project_id":project_id, "mutation_engine_id":mutation_engine_id}
     where = "project_id = $project_id and mutation_engine_id = $mutation_engine_id"
     res = self.db.select("statistics", what=what, where=where, vars=vars)
@@ -134,7 +163,7 @@ class CSamplesGenerator:
         row = res[0]
         vars = {"id":row.statistic_id}
         where = "statistic_id = $id"
-        total = self.db.update("statistics", total=row.total+1, where=where, vars=vars)
+        total = self.db.update("statistics", total=row.total+1, iteration=row.iteration+1, where=where, vars=vars)
 
   def queue_is_full(self, prefix, maximum):
     tube_name = "%s-samples" % prefix
@@ -157,7 +186,6 @@ class CSamplesGenerator:
       job = q.reserve()
       if job.body.find(".") > -1 or job.body.find("/") > -1:
         raise Exception("Invalid filename %s" % job.body)
-
       sample_file = os.path.join(self.config["SAMPLES_PATH"], job.body)
       log("Deleting sample file %s" % sample_file)
 
@@ -206,6 +234,13 @@ class CSamplesGenerator:
                      exploitability=data["exploitable"],
                      disassembly=disasm, total_samples=total, 
                      additional = str(additional_info))
+      
+      self.reset_iteration(project_id)
+  
+  def reset_iteration(self, project_id):
+    vars = {"project_id":project_id}
+    where = "project_id = $project_id and mutation_engine_id = -1"
+    self.db.update("statistics", iteration=0, where=where, vars=vars)
 
   def find_crashes(self):
     what = "project_id, tube_prefix"
