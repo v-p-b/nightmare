@@ -499,7 +499,12 @@ class CBlindCoverageFuzzer:
     self.record_metric(filename, metrics)
 
     for metric in metrics:
-      bbs = int(metric.unique_bbs)
+      bbs=0
+      if self.non_uniques:
+        bbs = int(metric.bbs)
+      else:
+        bbs = int(metric.unique_bbs)
+      
       if bbs > self.stats["max"]:
         if not self.radamsa:
           log("GOOD! Found an interesting change at 0x%x! Covered basic blocks %d, original maximum %d" % (offset, bbs, self.stats["max"]))
