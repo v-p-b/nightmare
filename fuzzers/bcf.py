@@ -293,7 +293,7 @@ class CBlindCoverageFuzzer:
     self.lock.acquire()
     try:
       buf = bytearray(template)
-      buf[(self.skip_bytes + self.stats["iteration"])%len(buf)] = chr(self.stats["iteration_char"])
+      buf[self.skip_bytes + self.stats["iteration"]] = chr(self.stats["iteration_char"])
       ret = self.stats["iteration"], 1, buf
 
       self.stats["iteration_char"] += 1
@@ -353,8 +353,6 @@ class CBlindCoverageFuzzer:
     buf = open(filename, "rb").read()
     # TODO: Check this...
     size = random.randint(0, self.max_size)
-    while self.skip_bytes>=min(len(buf)-size, len(template)-size):
-        size = random.randint(0, self.max_size)
     offset = random.randint(self.skip_bytes, min(len(buf)-size, len(template)-size))
     chunk = buf[offset:offset+size]
 
@@ -373,8 +371,6 @@ class CBlindCoverageFuzzer:
       buf = bytearray(template)
       key = None
       size = random.randint(0, self.max_size)
-      while self.skip_bytes>=len(buf)-size:
-        size = random.randint(0, self.max_size)
       offset = random.randint(self.skip_bytes, len(buf)-size)
 
       values = []
