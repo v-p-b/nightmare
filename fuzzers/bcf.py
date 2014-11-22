@@ -72,6 +72,7 @@ class CBlindCoverageFuzzer:
     # Only for the iterative mutator
     self.stats["iteration"] = 0
     self.stats["iteration_char"] = 0
+    self.stats["all"]=set()
     
     self.generations = self.mgr.list()
     self.generation_value = 0
@@ -501,6 +502,13 @@ class CBlindCoverageFuzzer:
       else:
         bbs = int(metric.unique_bbs)
       
+      if len(metric.all_unique_bbs-self.stats["all"])>0:
+        if len(self.stats["all"])==0:
+          log("=+= Found yet unseen basic block! Saving to templates.")
+
+          shutil.copyfile(filename,os.path.join(self.templates_path,os.path.basename(filename)))
+        self.stats["all"]=self.stats["all"] | metric.all_unique_bbs
+
       if bbs > self.stats["max"]:
         if not self.radamsa:
           log("GOOD! Found an interesting change at 0x%x! Covered basic blocks %d, original maximum %d" % (offset, bbs, self.stats["max"]))

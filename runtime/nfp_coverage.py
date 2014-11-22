@@ -4,6 +4,7 @@
 import os
 import sys
 import shutil
+import re
 
 from tempfile import mkdtemp,mkstemp
 
@@ -12,10 +13,12 @@ from nfp_process import TimeoutCommand
 
 #-----------------------------------------------------------------------
 class CCoverResults:
-  def __init__(self, bbs, unique_bbs, exit_code):
+  def __init__(self, bbs, exit_code):
+    self.all_bbs=bbs
+    self.all_unique_bbs=set(bbs)
     self.exit_code = int(exit_code)
-    self.bbs = bbs # Number of Basic Blocks executed
-    self.unique_bbs = unique_bbs
+    self.bbs = len(bbs) # Number of Basic Blocks executed
+    self.unique_bbs = len(self.all_unique_bbs)
 
   def __repr__(self):
     return "Return code %d, Basic Block(s) %d, Unique(s) %d" % (self.exit_code, self.bbs, self.unique_bbs)
@@ -27,32 +30,17 @@ class CDynRioCoverage:
     self.arch = arch
 
   def read_coverage_log(self, logdir, maximum=1):
-    bbs = 0
-    s = set()
+    bbs=[]
+    matcher=re.compile("module\\[ *([0-9]+)\\]: 0x([0-9a-f]+), *[0-9]+")
     for filename in os.listdir(logdir):
       if filename.endswith(".log") and filename.startswith("drcov"):
         path = os.path.join(logdir, filename)
         with open(path, "rb") as f:
-          i = 0
-          found_bb_table = False
-          s = set()
           for line in f.readlines():
-            if not found_bb_table:
-              i += 1
-              if line.startswith("BB Table:"):
-                values = line.split(" ")
-                if len(values) == 4:
-                  bbs = int(values[2])
-                  found_bb_table = True
-                else:
-                  raise Exception("Malformed line in drcov log file: %s" % line)
-            else:
-              s.add(line)
-
-      # At the moment, we only read one
-      break
-
-    return bbs, len(s)
+            m=matcher.match(line)
+            if m is not None:
+              bbs.append((m.group(1),m.group(2)))
+    return bbs
 
   def coverage(self, command, timeout=36000, hide_output = True):
     logdir = mkdtemp()
@@ -69,7 +57,7 @@ class CDynRioCoverage:
     shutil.rmtree(logdir)
 
     debug("Returning coverage data...")
-    cover = CCoverResults(coverage[0], coverage[1], ret)
+    cover = CCoverResults(coverage, ret)
     return cover
 
   def multi_coverage(self, command, times, timeout=36000):
@@ -86,15 +74,14 @@ class CPinCoverage:
     self.arch = arch
 
   def read_coverage_log(self, logfile, maximum=1):
-    bbs = 0
-    s = set()
+    edges = []
     with open(logfile, "rb") as f:
       lines = f.readlines()
-      bbs = len(lines) - 1
       for line in lines:
         line_parts = line.split("\t")
-        s.add(line_parts[0])
-    return bbs, len(s)
+        for i in xrange(0,int(line_parts[2])):
+          edges.append((line_parts[0],line_parts[1]))
+    return edges
 
   def coverage(self, command, timeout=36000, hide_output = True):
     tool_path = self.path+"/source/tools/RunTracer"
@@ -120,7 +107,7 @@ class CPinCoverage:
     os.remove(logfile)
 
     debug("Returning coverage data...")
-    cover = CCoverResults(coverage[0], coverage[1], ret)
+    cover = CCoverResults(coverage, ret)
     return cover
 
   def multi_coverage(self, command, times, timeout=36000):
