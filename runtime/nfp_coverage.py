@@ -86,15 +86,15 @@ class CPinCoverage:
     self.arch = arch
 
   def read_coverage_log(self, logfile, maximum=1):
-    bbs = 0
-    s = set()
+    edges = 0
+    unique_edges = 0
     with open(logfile, "rb") as f:
       lines = f.readlines()
-      bbs = len(lines) - 1
+      unique_edges=len(lines)
       for line in lines:
         line_parts = line.split("\t")
-        s.add(line_parts[0])
-    return bbs, len(s)
+        edges = edges + int(line_parts[2])
+    return edges, unique_edges
 
   def coverage(self, command, timeout=36000, hide_output = True):
     tool_path = self.path+"/source/tools/RunTracer"

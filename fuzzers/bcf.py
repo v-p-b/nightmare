@@ -177,19 +177,19 @@ class CBlindCoverageFuzzer:
       self.cleanup = None
     
     try:
-      self.iterative = bool(int(parser.get(self.section, 'iterative')))
+      self.iterative = parser.getboolean(self.section, 'iterative')
       if self.iterative:
         debug("Iterative algorithm in use")
     except:
       self.iterative = False
     
     try:
-      self.save_generations = bool(int(parser.get(self.section, 'save-generations')))
+      self.save_generations = parser.getboolean(self.section, 'save-generations')
     except:
       self.save_generations = False
 
     try:
-      self.radamsa = bool(parser.get(self.section, 'radamsa'))
+      self.radamsa = parser.getboolean(self.section, 'radamsa')
       if self.radamsa:
         debug("Radamsa algorithm in use")
     except:
@@ -214,22 +214,22 @@ class CBlindCoverageFuzzer:
       pass
 
     try:
-      self.generation_bottom_level = int(parser.get(self.section, 'generation-bottom-level'))
+      self.generation_bottom_level = parser.getint(self.section, 'generation-bottom-level')
     except:
       self.generation_bottom_level = -100
 
     try:
-      self.hide_output = bool(int(parser.get(self.section, 'hide-output')))
+      self.hide_output = parser.getboolean(self.section, 'hide-output')
     except:
       self.hide_output = True
 
     try:
-      self.skip_bytes = int(parser.get(self.section, 'skip-bytes'))
+      self.skip_bytes = parser.getint(self.section, 'skip-bytes')
     except:
       self.skip_bytes = 4
     
     try:
-      self.non_uniques = bool(parser.get(self.section, 'non-uniques'))
+      self.non_uniques = parser.getboolean(self.section, 'non-uniques')
     except:
       self.non_uniques = False
 
