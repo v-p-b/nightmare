@@ -189,7 +189,7 @@ class CBlindCoverageFuzzer:
       self.save_generations = False
 
     try:
-      self.radamsa = parser.getboolean(self.section, 'radamsa')
+      self.radamsa = bool(parser.get(self.section, 'radamsa'))
       if self.radamsa:
         debug("Radamsa algorithm in use")
     except:
@@ -357,7 +357,7 @@ class CBlindCoverageFuzzer:
     if  min(len(buf)-size, len(template)-size)>self.skip_bytes:
       offset = random.randint(self.skip_bytes, min(len(buf)-size, len(template)-size))
     else:
-      offset = self.skip_bytes
+     offset = self.skip_bytes
 
     chunk = buf[offset:offset+size]
 
@@ -504,12 +504,14 @@ class CBlindCoverageFuzzer:
     self.record_metric(filename, metrics)
 
     for metric in metrics:
-      bbs=0
-      if self.non_uniques:
-        bbs = int(metric.bbs)
-      else:
-        bbs = int(metric.unique_bbs)
-      
+      bbs = int(metric.unique_bbs)
+      if len(metric.all_unique_bbs-self.stats["all"])>0:
+        if len(self.stats["all"])==0:
+          log("=+= Found yet unseen basic block! Saving to templates.")
+          shutil.copyfile(filename,os.path.join(self.templates_path,os.path.basename(filename)))
+
+        self.stats["all"]=self.stats["all"] | metric.all_unique_bbs
+
       if bbs > self.stats["max"]:
         if not self.radamsa:
           log("GOOD! Found an interesting change at 0x%x! Covered basic blocks %d, original maximum %d" % (offset, bbs, self.stats["max"]))
